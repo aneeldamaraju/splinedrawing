@@ -13,8 +13,7 @@
 
     <script>
         // Set rng seed
-        // const seed = Math.floor(.5 * 1000);
-        // Math.seedrandom(seed);
+
 
         // Define the width and height variables
         const width = 800;
@@ -92,7 +91,7 @@
         // });
 
         // Generate red dots along the curve
-        const numDots = 100;
+        const numDots = 10000;
         const step = 1 / numDots;
         const ptsOnCurve = [];
 
@@ -111,8 +110,10 @@
 
         // Select random indices for the square
         const randomIndex = Math.floor(Math.random() * ptsOnCurve.length);
-        const secondIndex = (randomIndex + Math.floor(ptsOnCurve.length * 0.1)) % ptsOnCurve.length;
+        const secondRand = (randomIndex + Math.floor(ptsOnCurve.length * 0.1));// % ptsOnCurve.length;
 
+        const secondIndex = secondRand % ptsOnCurve.length;
+        
         // Find the minimum and maximum y-values between randomIndex and secondIndex
         let minY = Number.MAX_VALUE;
         let maxY = Number.MIN_VALUE;
@@ -136,65 +137,124 @@
         // Draw the filled rectangle with black outline
         function drawRectangle(){
             ctx.fillStyle = 'white';
-            ctx.strokeStyle = 'black';
+            ctx.strokeStyle = 'white';
             ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
             ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
         }
-        
+
+
+        function eraseSpline(){
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            for (var i = Math.min(randomIndex,secondRand); i <= Math.max(randomIndex,secondRand); i++){
+                ctx.beginPath();
+                ctx.arc(ptsOnCurve[i%ptsOnCurve.length].x, ptsOnCurve[i%ptsOnCurve.length].y, 2, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
 
 
         // Get control points for cubic bezier spline
+        function interpolatePoints(point1, point2, numPoints) {
+            var interpolatedPoints = [];
+            
+            for (var i = 0; i <= numPoints+1; i++) {
+                var t = i / (numPoints + 1);
+                var x = point1.x + (point2.x - point1.x) * t;
+                var y = point1.y + (point2.y - point1.y) * t;
+                interpolatedPoints.push({x: x, y: y});
+            }
+            
+            return interpolatedPoints;
+        }
 
-        const splinePoints = [
-            { x: ptsOnCurve[randomIndex].x + 50, y: ptsOnCurve[randomIndex].y},
-            { x: ptsOnCurve[secondIndex].x - 50, y: ptsOnCurve[secondIndex].y },
-        ];
+        const splinePoints = interpolatePoints(ptsOnCurve[randomIndex], ptsOnCurve[secondIndex],5);
+        
+
+
+
         // Draw spline control points
         function drawSplinePoints() {
             ctx.fillStyle = 'blue';
-            splinePoints.forEach(splinePoints => {
+            for (let i = 1; i < splinePoints.length-1; i++) {
                 ctx.beginPath();
-                ctx.arc(splinePoints.x, splinePoints.y, 4, 0, 2 * Math.PI);
+                ctx.arc(splinePoints[i].x, splinePoints[i].y, 4, 0, 2 * Math.PI);
                 ctx.closePath();
                 ctx.fill();
-            });
+            }
         }
         
 
         function drawConnectorLines(){
             ctx.strokeStyle = 'black';
-            ctx.beginPath();
-            ctx.moveTo(ptsOnCurve[randomIndex].x, ptsOnCurve[randomIndex].y);
-            ctx.lineTo(splinePoints[0].x, splinePoints[0].y);
-            ctx.closePath();
-            ctx.stroke();
+
+            for (let i = 0; i < splinePoints.length; i += 3) {
+                if(i-1 >0 ){
+                    ctx.beginPath();
+                    ctx.moveTo(splinePoints[i].x, splinePoints[i].y);
+                    ctx.lineTo(splinePoints[i-1].x, splinePoints[i-1].y);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+                
+                if(i+1 <  splinePoints.length){
+                    ctx.beginPath();
+                    ctx.moveTo(splinePoints[i+1].x, splinePoints[i+1].y);
+                    ctx.lineTo(splinePoints[i].x, splinePoints[i].y);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+
+            }
+
 
             ctx.beginPath();
-            ctx.moveTo(ptsOnCurve[secondIndex].x, ptsOnCurve[secondIndex].y);
-            ctx.lineTo(splinePoints[1].x, splinePoints[1].y);
+            ctx.moveTo(splinePoints[3].x, splinePoints[3].y);
+            ctx.lineTo(splinePoints[2].x, splinePoints[2].y);
             ctx.closePath();
             ctx.stroke();
         }
 
         // Draw the cubic Bezier spline
+        var updatePoints = true
+
         function drawCubicBezierSpline(){
             ctx.strokeStyle = 'blue';
             ctx.beginPath();
-            ctx.moveTo(ptsOnCurve[randomIndex].x, ptsOnCurve[randomIndex].y);
-            ctx.bezierCurveTo(
-                splinePoints[0].x, splinePoints[0].y,
-                splinePoints[1].x, splinePoints[1].y,
-                ptsOnCurve[secondIndex].x, ptsOnCurve[secondIndex].y
-            );
+            // ctx.moveTo(splinePoints[0].x, splinePoints[0].y);
+            // ctx.bezierCurveTo(
+            //     splinePoints[1].x, splinePoints[1].y,
+            //     splinePoints[2].x, splinePoints[2].y,
+            //     splinePoints[3].x, splinePoints[3].y
+            // );
+            
+
+            ctx.moveTo(splinePoints[0].x, splinePoints[0].y);
+            // 
+            for (let i = 1; i < splinePoints.length - 2; i += 3) {
+                ctx.bezierCurveTo(
+                    splinePoints[i].x, splinePoints[i].y,
+                    splinePoints[i + 1].x, splinePoints[i + 1].y,
+                    splinePoints[i + 2].x, splinePoints[i + 2].y
+                );
+            }
             ctx.stroke();
+            if (updatePoints){
+                for (let i = 0; i < splinePoints.length; i += 3) {
+                    drawX(splinePoints[i].x, splinePoints[i].y, redDotSize);
+                }
+            }
+            
         }
 
 
         // Draw red 'X' at the locations denoted by randomIndex and secondIndex
         const redDotSize = 6;
         ctx.fillStyle = 'red';
-        drawX(ptsOnCurve[randomIndex].x, ptsOnCurve[randomIndex].y, redDotSize);
-        drawX(ptsOnCurve[secondIndex].x, ptsOnCurve[secondIndex].y, redDotSize);
+        // drawX(ptsOnCurve[randomIndex].x, ptsOnCurve[randomIndex].y, redDotSize);
+        // drawX(ptsOnCurve[secondIndex].x, ptsOnCurve[secondIndex].y, redDotSize);
+        
 
         // Function to draw a red 'X' at a given location
         function drawX(x, y, size) {
@@ -225,15 +285,19 @@
 
 
         // Updating canvas for interactivity
+
         function updateCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawCubicBezierCurve();
-            drawRectangle();
-            drawSplinePoints();
+            // drawRectangle(); //Need to replace the draw rectangle function with one that just draws over the old line 
+            eraseSpline();
+            if (updatePoints){
+                drawSplinePoints();
+            }
             drawCubicBezierSpline();
-            drawConnectorLines();
-            drawX(ptsOnCurve[randomIndex].x, ptsOnCurve[randomIndex].y, redDotSize);
-            drawX(ptsOnCurve[secondIndex].x, ptsOnCurve[secondIndex].y, redDotSize);
+            if (updatePoints){
+                drawConnectorLines();
+            }
         }
 
         // Add event handlers for dragging points around
@@ -272,7 +336,7 @@
 
         function findSplinePoint(x, y) {
             const threshold = 6;
-            for (let i = 0; i < splinePoints.length; i++) {
+            for (let i = 1; i < splinePoints.length-1; i++) {
                 const point = splinePoints[i];
                 if (Math.abs(point.x - x) <= threshold && Math.abs(point.y - y) <= threshold) {
                     return point;
@@ -296,7 +360,20 @@
         //Initialize Canvas
         updateCanvas();
 
+        function toggleMarkers(){
+            var button = document.getElementById('toggleButton')
+            if (button.textContent === 'Hide Markers') {
+                button.textContent = 'Show Markers';
+                updatePoints = false;
+            }else{
+                button.textContent = 'Hide Markers'
+                updatePoints = true;
+            }
+            console.log("Update value:", updatePoints);
+            updateCanvas();
+        }
 
     </script>
+    <button id="toggleButton" onclick="toggleMarkers()">Hide Markers</button>
 </body>
 </html>
